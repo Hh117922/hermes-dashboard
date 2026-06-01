@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Monitor</title>
+<style>
+:root {
+  --glass-bg: rgba(18, 20, 28, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(24, 27, 38, 0.72);
+  --text: #e8eaed;
+  --text-secondary: #9aa0b0;
+  --text-tertiary: #5f6570;
+  --accent: #64a4ff;
+  --accent-glow: rgba(100, 164, 255, 0.18);
+  --green: #4ade80;
+  --green-glow: rgba(74, 222, 128, 0.18);
+  --amber: #fbbf24;
+  --radius: 16px;
+  --radius-sm: 8px;
+  --blur: 24px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", ui-monospace, monospace;
+  color: var(--text);
+  background: #0a0c14;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Background layer */
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden;
+}
+.bg-img {
+  position: absolute; inset: -40px;
+  background: url('hermes-dashboard-bg.jpg') center/cover no-repeat;
+  filter: brightness(0.55) saturate(0.7);
+  transition: transform .8s cubic-bezier(.16, 1, .3, 1);
+}
+.bg-overlay {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 60% 0%, rgba(64, 100, 180, 0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at 20% 80%, rgba(30, 80, 120, 0.08) 0%, transparent 50%);
+}
+.bg-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(10, 12, 20, 0.6) 100%);
+}
+
+/* Main content */
+main {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto; padding: 32px 28px 48px;
+}
+
+/* Header */
+header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 36px;
+  animation: fadeDown .7s cubic-bezier(.16, 1, .3, 1) both;
+}
+@keyframes fadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+
+.status-ring {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 12px var(--green), 0 0 24px rgba(74, 222, 128, 0.3);
+  animation: pulse-ring 2.5s ease-in-out infinite;
+}
+@keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 12px var(--green), 0 0 24px rgba(74, 222, 128, 0.3); } 50% { box-shadow: 0 0 6px var(--green), 0 0 12px rgba(74, 222, 128, 0.15); } }
+
+/* Status dot — 三色系统 */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  transition: background .4s ease, box-shadow .4s ease;
+}
+.status-dot.online {
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80, 0 0 20px rgba(74,222,128,0.35);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-dot.stale {
+  background: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24, 0 0 16px rgba(251,191,36,0.25);
+  animation: pulse-dot 3s ease-in-out infinite;
+}
+.status-dot.error {
+  background: #f87171;
+  box-shadow: 0 0 6px #f87171, 0 0 12px rgba(248,113,113,0.2);
+  animation: none;
+}
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.version-badge {
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+  background: var(--accent-glow); color: var(--accent);
+}
+
+/* Grid */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+.grid-wide { grid-template-columns: repeat(2, 1fr); }
+
+/* Glass card */
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 22px 24px;
+  transition: background .35s ease, border-color .35s ease, transform .35s cubic-bezier(.16, 1, .3, 1), box-shadow .35s ease;
+  animation: fadeUp .6s cubic-bezier(.16, 1, .3, 1) both;
+  position: relative; overflow: hidden;
+}
+.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: var(--radius);
+  background: radial-gradient(ellipse at 0% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+.card:hover {
+  background: var(--glass-hover);
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.card:nth-child(1) { animation-delay: .1s; }
+.card:nth-child(2) { animation-delay: .17s; }
+.card:nth-child(3) { animation-delay: .24s; }
+.card:nth-child(4) { animation-delay: .31s; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.card h2 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; letter-spacing: .02em; }
+
+/* Stats typography */
+.stat-main { font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+.row { display: flex; gap: 24px; }
+.col { flex: 1; }
+.col-num { font-size: 20px; font-weight: 700; letter-spacing: -.02em; transition: color .3s; }
+.col-label { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+
+/* Bar */
+.progress-bar { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.06); margin-top: 14px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .8s cubic-bezier(.16, 1, .3, 1); }
+
+/* Timeline */
+.timeline { max-height: 360px; overflow-y: auto; }
+.timeline::-webkit-scrollbar { width: 4px; }
+.timeline::-webkit-scrollbar-track { background: transparent; }
+.timeline::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+.timeline-item {
+  display: flex; gap: 12px; padding: 8px 4px; font-size: 12px; align-items: flex-start;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background .2s ease; border-radius: var(--radius-sm);
+}
+.timeline-item:hover { background: rgba(255,255,255,0.03); }
+.timeline-item:last-child { border-bottom: none; }
+
+.time {
+  color: var(--text-tertiary); font-size: 10px; white-space: nowrap;
+  width: 46px; padding-top: 1px; font-variant-numeric: tabular-nums;
+}
+.tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 5px; font-weight: 600;
+  white-space: nowrap; letter-spacing: .02em;
+}
+.tag.api { background: var(--accent-glow); color: var(--accent); }
+.tag.tool { background: var(--green-glow); color: var(--green); }
+.detail { flex: 1; min-width: 0; line-height: 1.5; }
+.detail-title { font-weight: 600; color: var(--text); }
+.detail-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Skeleton */
+.skel { height: 14px; border-radius: 4px; background: rgba(255,255,255,0.05); animation: skel-w 1.8s ease-in-out infinite; }
+.skel.w { width: 75%; } .skel.n { width: 45%; }
+@keyframes skel-w { 0%, 100% { opacity: .3; } 50% { opacity: .7; } }
+
+/* Value update highlight */
+.highlight { animation: hl .7s ease; }
+@keyframes hl { 0% { color: var(--accent); } 100% { color: var(--text); } }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-wide { grid-template-columns: 1fr; }
+  main { padding: 20px 16px 40px; }
+}
+@media (max-width: 520px) {
+  .grid, .grid-wide { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer">
+  <div class="bg-img" id="bg-img"></div>
+  <div class="bg-overlay"></div>
+  <div class="bg-vignette"></div>
+</div>
+
+<main>
+  <header>
+    <div class="status-dot online" id="status-dot"></div>
+    <h1>Hermes Monitor</h1>
+    <span class="version-badge">v3</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>🤖 当前模型</h2>
+      <div class="stat-main" id="model">—</div>
+      <div class="stat-sub" id="provider">—</div>
+    </div>
+    <div class="card">
+      <h2>📊 Token 用量</h2>
+      <div class="row">
+        <div class="col"><div class="col-num" id="tok-in">—</div><div class="col-label">输入</div></div>
+        <div class="col"><div class="col-num" id="tok-out">—</div><div class="col-label">输出</div></div>
+        <div class="col"><div class="col-num" id="tok-total">—</div><div class="col-label">总计</div></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="tok-bar" style="width:0%"></div></div>
+      <div class="stat-sub" id="tok-detail" style="margin-top:8px">—</div>
+    </div>
+    <div class="card">
+      <h2>⚡ 性能</h2>
+      <div class="row">
+        <div class="col"><div class="col-num" id="latency">—</div><div class="col-label">延迟</div></div>
+        <div class="col"><div class="col-num" id="cache">—</div><div class="col-label">缓存命中</div></div>
+        <div class="col"><div class="col-num" id="calls">—</div><div class="col-label">调用次数</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📁 会话</h2>
+      <div class="stat-main" id="session" style="font-size:12px;font-weight:500;line-height:1.6;word-break:break-all">—</div>
+    </div>
+  </div>
+
+  <div class="grid grid-wide">
+    <div class="card">
+      <h2>🔧 工具调用</h2>
+      <div class="timeline" id="tool-list">
+        <div class="timeline-item"><div class="skel w"></div></div>
+        <div class="timeline-item"><div class="skel n"></div></div>
+        <div class="timeline-item"><div class="skel w"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📡 API 调用</h2>
+      <div class="timeline" id="api-list">
+        <div class="timeline-item"><div class="skel w"></div></div>
+        <div class="timeline-item"><div class="skel n"></div></div>
+        <div class="timeline-item"><div class="skel w"></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let prevTotal = 0, prevCalls = 0, lastSuccess = Date.now();
+
+function setStatus(state) {
+  const dot = document.getElementById("status-dot");
+  dot.className = "status-dot " + state;
+}
+
+async function refresh() {
+  try {
+    const [s, e] = await Promise.all([
+      fetch("http://localhost:8090/api/stats").then(r => r.json()),
+      fetch("http://localhost:8090/api/events").then(r => r.json())
+    ]);
+
+    lastSuccess = Date.now();
+    setStatus("online");
+
+    document.getElementById("model").textContent = s.model || "—";
+    document.getElementById("provider").textContent = (s.provider || "—") + "  ·  Call #" + s.total_calls;
+
+    updateVal("tok-in", s.total_in);
+    updateVal("tok-out", s.total_out);
+    updateVal("tok-total", s.total_tokens);
+
+    const ratio = s.total_in > 0 ? Math.round(s.total_out / s.total_in * 100) : 0;
+    document.getElementById("tok-bar").style.width = Math.min(ratio, 100) + "%";
+    document.getElementById("tok-detail").textContent = "输出 / 输入比 " + ratio + "%  ·  累计 " + s.total_calls + " 次调用";
+
+    if (s.total_tokens !== prevTotal || s.total_calls !== prevCalls) {
+      document.getElementById("tok-total").classList.add("highlight");
+      setTimeout(() => document.getElementById("tok-total").classList.remove("highlight"), 800);
+    }
+    prevTotal = s.total_tokens;
+    prevCalls = s.total_calls;
+
+    document.getElementById("latency").textContent = (s.last_latency || 0).toFixed(1) + "s";
+    document.getElementById("cache").textContent = (s.last_cache || 0) + "%";
+    document.getElementById("calls").textContent = s.total_calls || 0;
+    document.getElementById("session").textContent = s.session || "—";
+
+    // Tools
+    const tools = s.tools || [];
+    const tEl = document.getElementById("tool-list");
+    if (!tools.length) {
+      tEl.innerHTML = '<div style="padding:16px 0;color:var(--text-tertiary);font-size:12px">等待活动...</div>';
+    } else {
+      tEl.innerHTML = tools.slice(0, 20).map(t =>
+        `<div class="timeline-item"><span class="time">${t.time}</span><span class="tag tool">${t.tool}</span><span class="detail"><span class="detail-meta">${t.duration.toFixed(2)}s  ·  ${fmt(t.chars)} 字符</span></span></div>`
+      ).join("");
+    }
+
+    // API
+    const apis = e.filter(x => x.type === "api").slice(-20).reverse();
+    const aEl = document.getElementById("api-list");
+    if (!apis.length) {
+      aEl.innerHTML = '<div style="padding:16px 0;color:var(--text-tertiary);font-size:12px">等待活动...</div>';
+    } else {
+      aEl.innerHTML = apis.map(a =>
+        `<div class="timeline-item"><span class="time">${a.time}</span><span class="tag api">#${a.call}</span><span class="detail"><div class="detail-title">${a.model}</div><div class="detail-meta">in:${fmt(a.in)}  out:${fmt(a.out)}  ·  ${a.latency.toFixed(1)}s  ·  缓存 ${a.cache}%</div></span></div>`
+      ).join("");
+    }
+  } catch (e) {
+    const elapsed = (Date.now() - lastSuccess) / 1000;
+    setStatus(elapsed > 30 ? "error" : "stale");
+    console.error(e);
+  }
+  // 后台静默检测：超过10秒无成功响应则变黄
+  if ((Date.now() - lastSuccess) / 1000 > 10) setStatus("stale");
+  setTimeout(refresh, 2000);
+}
+
+function updateVal(id, val) {
+  const el = document.getElementById(id);
+  if (el.textContent !== fmt(val)) {
+    el.textContent = fmt(val);
+    el.classList.add("highlight");
+    setTimeout(() => el.classList.remove("highlight"), 800);
+  }
+}
+
+function fmt(n) {
+  if (!n) return "0";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return n.toLocaleString();
+}
+
+// Subtle parallax
+document.addEventListener("mousemove", e => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 8;
+  const y = (e.clientY / window.innerHeight - 0.5) * 8;
+  document.getElementById("bg-img").style.transform = `translate(${x}px, ${y}px) scale(1.04)`;
+});
+
+refresh();
+</script>
+</body>
+</html>
